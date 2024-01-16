@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Project 1</title>
+
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+      .gridlines line {
+        stroke: #bbb;
+      }
+
+      .gridlines .domain {
+        stroke: none;
+      }
+
+      .chart-title,
+      .legend-text,
+      .x-label,
+      .y-label,
+      h2 {
+        font-family: "Impact", sans-serif;
+      }
+
+      p {
+        font-size: 15pt;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div>
+      <h2>
+        Soccer Player Performance Observing Minutes Played and Goals Scored
+      </h2>
+
+      <p>
+        The first visualization shows us that there is a positive correlation
+        between the minutes played and number of goals scored.
+      </p>
+      <svg id="scatterplot" width="800" height="600"></svg>
+
+      <script>
+        const svg = d3.select("svg#scatterplot");
+        const width = svg.attr("width");
+        const height = svg.attr("height");
+        const margin = { top: 10, right: 10, bottom: 50, left: 80 };
+        const chartWidth = width - margin.left - margin.right;
+        const chartHeight = height - margin.top - margin.bottom;
+
+        let chartArea = svg
+          .append("g")
+          .attr("transform", `translate(${margin.left},${margin.top})`);
+
+        const positionColors = {
+          0: "#001433",
+          1: "#4dff00",
+          2: "#a5acaf",
+          3: "#245998",
+        };
+
+        const legend = svg
+          .append("g")
+          .attr("class", "legend")
+          .attr("transform", `translate(${chartWidth - 620}, 70)`);
+
+        const legendItems = [
+          { position: "Goal-Keeper", color: "#001433" },
+          { position: "Defender", color: "#4dff00" },
+          { position: "Mid-Fielder", color: "#a5acaf" },
+          { position: "Striker", color: "#245998" },
+        ];
+
+        legendItems.forEach((item, i) => {
+          const yPos = i * 20;
+
+          legend
+            .append("rect")
+            .attr("x", 0)
+            .attr("y", yPos)
+            .attr("width", 18)
+            .attr("height", 18)
+            .attr("fill", item.color);
+
+          legend
+            .append("text")
+            .attr("x", 24)
+            .attr("y", yPos + 9)
+            .attr("dy", "0.35em")
+            .attr("class", "legend-text")
+            .text(item.position);
+        });
+
+        d3.json("soccer.json").then((data) => {
+          data.forEach((d) => {
+            if (d.Position.length > 2) {
+              d.Position = d.Position.slice(0, 2);
+            }
+
+            if (d.Position === "GK") {
+              d.Position = 0;
+            } else if (d.Position === "DF") {
+              d.Position = 1;
+            } else if (d.Position === "MF") {
+              d.Position = 2;
+            } else {
+              d.Position = 3;
+            }
+            d.Color = positionColors[d.Position];
+            console.log(d.Color);
+          });
+
+          // y-axis
+          const yExtent = d3.extent(data, (d) => d.Goals);
+          const yScale = d3
+            .scaleLinear()
+            .domain(yExtent)
+            .range([chartHeight, 0]);
+
+          let yAxis = d3.axisLeft(yScale);
+          let yGridlines = d3
+            .axisLeft(yScale)
+            .tickSize(-chartWidth - 10)
+            .tickFormat("");
+          chartArea
+            .append("g")
+            .attr("class", "y-axis")
+            .attr("transform", `translate(-10, 0)`)
+            .call(yAxis);
+          chartArea
+            .append("g")
+            .attr("class", "y gridlines")
+            .attr("transform", `translate(-10, 0)`)
+            .call(yGridlines);
+
+          svg
+            .append("text")
+            .attr("class", "y-label")
+            .attr("text-anchor", "end")
+            .attr("x", -10)
+            .attr("y", 40)
+            .attr("transform", "rotate(-90)")
+            .text("Goals Scored");
+
+          // x-axis
+          const xExtent = d3.extent(data, (d) => d.Mins);
+          const xScale = d3
+            .scaleLinear()
+            .domain(xExtent)
+            .range([0, chartWidth]);
+
+          let xAxis = d3.axisBottom(xScale);
+          let xGridlines = d3
+            .axisBottom(xScale)
+            .tickSize(-chartHeight - 10)
+            .tickFormat("");
+
+          chartArea
+            .append("g")
+            .attr("class", "x-axis")
+            .attr("transform", `translate(0,${chartHeight + 10})`)
+            .call(xAxis);
+
+          chartArea
+            .append("g")
+            .attr("class", "x gridlines")
+            .attr("transform", `translate(0,${chartHeight + 10})`)
+            .call(xGridlines);
+
+          chartArea
+            .append("text")
+            .attr("class", "x-label")
+            .attr("text-anchor", "end")
+            .attr("x", width - 90)
+            .attr("y", height - 15)
+            .text("Minutes Played");
+
+          data.forEach((d) => {
+            const position = d.Position;
+            chartArea
+              .append("circle")
+              .attr("cx", xScale(d.Mins))
+              .attr("cy", yScale(d.Goals))
+              .attr("r", 5)
+              .attr("fill", d.Color);
+          });
+        });
+      </script>
+    </div>
+
+    <div>
+      <h2>Avergae Goals + Assists Contribution of Players Grouped by Age</h2>
+
+      <p>
+        The second visualization illustrates that the age group of 20-24
+        generated the highest number of average goals and assists among all age
+        groups.
+      </p>
+      <svg id="barchart" height="400" width="800"></svg>
+      <script>
+        function calculateAgeRange(age) {
+          if (age >= 20 && age <= 24) {
+            return "20-24";
+          } else if (age >= 25 && age <= 29) {
+            return "25-29";
+          } else if (age >= 30 && age <= 34) {
+            return "30-34";
+          } else {
+            return "Other";
+          }
+        }
+
+        d3.json("soccer.json", d3.autoType).then(function (data) {
+          console.log(data);
+
+          const ageData = data
+            .filter((d) => d.Goals + d.Assists >= 1)
+            .map((d) => ({
+              ageRange: calculateAgeRange(d.Age),
+              goalsAssists: +d.Goals + +d.Assists,
+            }));
+
+          const ageRangeAverages = {};
+
+          ageData.forEach((d) => {
+            if (ageRangeAverages[d.ageRange]) {
+              ageRangeAverages[d.ageRange].push(d.goalsAssists);
+            } else {
+              ageRangeAverages[d.ageRange] = [d.goalsAssists];
+            }
+          });
+
+          Object.keys(ageRangeAverages).forEach((key) => {
+            ageRangeAverages[key] = d3.mean(ageRangeAverages[key]);
+          });
+
+          const sortedAgeRanges = Object.keys(ageRangeAverages).sort(
+            (a, b) => ageRangeAverages[b] - ageRangeAverages[a]
+          );
+
+          ageData.forEach((d) => {
+            const index = sortedAgeRanges.indexOf(d.ageRange);
+            if (index === 0) {
+              d.category = "gold";
+            } else if (index === 1) {
+              d.category = "silver";
+            } else {
+              d.category = "bronze";
+            }
+          });
+
+          const svg2 = d3.select("#barchart");
+          const width = svg2.attr("width");
+          const height = svg2.attr("height");
+          const margins = { top: 10, right: 10, bottom: 50, left: 80 };
+          const chartWidth = width - margins.left - margins.right;
+          const chartHeight = height - margins.top - margins.bottom;
+
+          const xScale = d3
+            .scaleBand()
+            .domain(sortedAgeRanges)
+            .range([margins.left, width - margins.right])
+            .padding(0.1);
+
+          const yScale = d3
+            .scaleLinear()
+            .domain([0, d3.max(Object.values(ageRangeAverages))])
+            .nice()
+            .range([height - margins.bottom, margins.top]);
+
+          const colorScale = d3
+            .scaleOrdinal()
+            .domain(sortedAgeRanges)
+            .range(["#DAA520", "#808080", "#CD7F32", "#000000"]);
+
+          svg2
+            .selectAll("rect")
+            .data(sortedAgeRanges)
+            .enter()
+            .append("rect")
+            .attr("x", (ageRange) => xScale(ageRange))
+            .attr("y", (ageRange) => yScale(ageRangeAverages[ageRange]))
+            .attr("width", xScale.bandwidth())
+            .attr(
+              "height",
+              (ageRange) =>
+                height - margins.bottom - yScale(ageRangeAverages[ageRange])
+            )
+            .attr("fill", (ageRange) => colorScale(ageRange));
+
+          svg2
+            .append("g")
+            .attr("class", "x-axis")
+            .attr("transform", `translate(0,${height - margins.bottom})`)
+            .call(d3.axisBottom(xScale));
+
+          svg2
+            .append("text")
+            .attr("x", width - 50)
+            .attr("y", height - 10)
+            .style("text-anchor", "middle")
+            .attr("class", "y-label")
+            .text("Age Range");
+
+          svg2
+            .append("g")
+            .attr("class", "y-axis")
+            .attr("transform", `translate(${margins.left},0)`)
+            .call(d3.axisLeft(yScale));
+
+          svg2
+            .append("text")
+            .attr("x", -80)
+            .attr("y", 40)
+            .style("text-anchor", "middle")
+            .attr("class", "x-label")
+            .attr("transform", "rotate(-90)")
+            .text("Average Goals + Assists");
+        });
+      </script>
+    </div>
+  </body>
+</html>
